@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Monitoramento de Temperaturas</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .grid { display: flex; gap: 40px; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Monitoramento de Temperaturas</h1>
+    <div id="grafico"></div>
+    <script>
+        const ultimos = {{ ultimos|tojson }};
+        const x = ultimos.map(d => d.timestamp);
+        const y = ultimos.map(d => d.temperatura);
+        const data = [{ x, y, type: 'scatter', mode: 'lines+markers', name: 'Temperatura' }];
+        Plotly.newPlot('grafico', data);
+    </script>
+    <div class="grid">
+        <div>
+            <h2>Últimas Leituras</h2>
+            <table>
+                <tr><th>Sensor</th><th>Timestamp</th><th>Temperatura (°C)</th></tr>
+                {% for linha in ultimos %}
+                <tr><td>{{ linha.sensor_id }}</td><td>{{ linha.timestamp }}</td><td>{{ linha.temperatura }}</td></tr>
+                {% endfor %}
+            </table>
+        </div>
+        <div>
+            <h2>Alertas (Temp > 38.0°C)</h2>
+            <table>
+                <tr><th>Sensor</th><th>Timestamp</th><th>Temperatura (°C)</th></tr>
+                {% for linha in alertas %}
+                <tr><td>{{ linha.sensor_id }}</td><td>{{ linha.timestamp }}</td><td>{{ linha.temperatura }}</td></tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>

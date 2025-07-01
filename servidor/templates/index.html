@@ -1,46 +1,140 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Monitoramento de Temperaturas</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .grid { display: flex; gap: 40px; margin-top: 30px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-        th { background-color: #f2f2f2; }
-    </style>
-</head>
-<body>
-    <h1>Monitoramento de Temperaturas</h1>
-    <div id="grafico"></div>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Painel de Temperatura</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        const ultimos = {{ ultimos|tojson }};
-        const x = ultimos.map(d => d.timestamp);
-        const y = ultimos.map(d => d.temperatura);
-        const data = [{ x, y, type: 'scatter', mode: 'lines+markers', name: 'Temperatura' }];
-        Plotly.newPlot('grafico', data);
+      async function atualizarDados() {
+        const resposta = await fetch("/dados");
+        const json = await resposta.json();
+        location.reload();
+      }
+      setInterval(atualizarDados, 5000);
     </script>
-    <div class="grid">
-        <div>
-            <h2>Últimas Leituras</h2>
-            <table>
-                <tr><th>Sensor</th><th>Timestamp</th><th>Temperatura (°C)</th></tr>
-                {% for linha in ultimos %}
-                <tr><td>{{ linha.sensor_id }}</td><td>{{ linha.timestamp }}</td><td>{{ linha.temperatura }}</td></tr>
-                {% endfor %}
-            </table>
-        </div>
-        <div>
-            <h2>Alertas (Temp > 38.0°C)</h2>
-            <table>
-                <tr><th>Sensor</th><th>Timestamp</th><th>Temperatura (°C)</th></tr>
-                {% for linha in alertas %}
-                <tr><td>{{ linha.sensor_id }}</td><td>{{ linha.timestamp }}</td><td>{{ linha.temperatura }}</td></tr>
-                {% endfor %}
-            </table>
-        </div>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background: #f9f9f9;
+        color: #333;
+      }
+      h1,
+      h2 {
+        color: #222;
+      }
+      .container {
+        max-width: 1000px;
+        margin: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 20px;
+        background: white;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px 10px;
+        text-align: center;
+      }
+      th {
+        background-color: #eee;
+      }
+      .status-critico {
+        background-color: #ffe5e5;
+        color: #b30000;
+        font-weight: bold;
+      }
+      .status-inativo {
+        background-color: #f0f0f0;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Monitoramento de Sensores de Temperatura</h1>
+
+      <h2>Status dos Sensores</h2>
+      <table>
+        <tr>
+          <th>Sensor</th>
+          <th>Status</th>
+        </tr>
+        {% for sensor, status in status_sensores.items() %}
+        <tr class="status-{{ status|lower }}">
+          <td>{{ sensor }}</td>
+          <td>{{ status }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <h2>Gráfico de Temperatura</h2>
+      <canvas id="graficoTemperaturas" width="900" height="300"></canvas>
+      <script>
+        const dadosSensores = {{ dados_sensores|safe }};
+        const datasets = [];
+        Object.keys(dadosSensores).forEach(sensor => {
+            datasets.push({
+                label: sensor,
+                data: dadosSensores[sensor].temperaturas,
+                fill: false,
+                tension: 0.2,
+                borderWidth: 2
+            });
+        });
+        const labels = dadosSensores[Object.keys(dadosSensores)[0]]?.timestamps || [];
+        new Chart(document.getElementById('graficoTemperaturas'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    x: { title: { display: true, text: 'Tempo' } },
+                    y: { title: { display: true, text: 'Temperatura (°C)' } }
+                }
+            }
+        });
+      </script>
+
+      <h2>Últimas Leituras</h2>
+      <table>
+        <tr>
+          <th>Sensor</th>
+          <th>Timestamp</th>
+          <th>Temperatura</th>
+        </tr>
+        {% for l in ultimos %}
+        <tr>
+          <td>{{ l.sensor_id }}</td>
+          <td>{{ l.timestamp }}</td>
+          <td>{{ l.temperatura }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+
+      <h2>Alertas Recentes</h2>
+      <table>
+        <tr>
+          <th>Sensor</th>
+          <th>Timestamp</th>
+          <th>Temperatura</th>
+        </tr>
+        {% for l in alertas %}
+        <tr class="status-critico">
+          <td>{{ l.sensor_id }}</td>
+          <td>{{ l.timestamp }}</td>
+          <td>{{ l.temperatura }}</td>
+        </tr>
+        {% endfor %}
+      </table>
     </div>
-</body>
+  </body>
 </html>

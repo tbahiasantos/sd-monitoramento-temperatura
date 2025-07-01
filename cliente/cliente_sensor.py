@@ -1,40 +1,55 @@
+# cliente/cliente_sensor.py
 import socket
 import time
 import random
-from datetime import datetime
 import sys
+from datetime import datetime
 
 HOST = 'localhost'
-PORT = 5000
-SENSOR_ID = sys.argv[1] if len(sys.argv) > 1 else 'sensor_001'
+PORTA = 5000
+INTERVALO = 2  # segundos
 
-def gerar_temperatura():
-    return round(random.uniform(35.0, 40.0), 1)
+def simular_temperatura(temp_atual):
+    # Aumenta ou diminui até ±0.5°C
+    return round(temp_atual + random.uniform(-0.5, 0.5), 2)
 
-def conectar():
+def ajustar_temperatura(temp_atual):
+    # Reduz temperatura de forma forçada
+    return round(temp_atual - random.uniform(0.8, 1.5), 2)
+
+def sensor(sensor_id):
+    temperatura = random.uniform(35.0, 37.0)  # Temperatura inicial
+
     while True:
         try:
-            cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            cliente.connect((HOST, PORT))
-            print(f"[SENSOR] {SENSOR_ID} conectado.")
-            return cliente
-        except:
-            print("[ERRO] Tentando reconectar...")
-            time.sleep(2)
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((HOST, PORTA))
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                mensagem = f"{sensor_id}|{timestamp}|{temperatura:.2f}"
+                s.sendall(mensagem.encode())
+                resposta = s.recv(1024).decode()
+                print(f"[{sensor_id}] Enviado: {mensagem}")
+                print(f"[{sensor_id}] Resposta: {resposta}")
 
-cliente = conectar()
+                if resposta == "AJUSTE":
+                    temperatura = ajustar_temperatura(temperatura)
+                    print(f"[{sensor_id}] Ajustando temperatura para {temperatura}°C\n")
+                elif resposta == "NAO_AUTORIZADO":
+                    print(f"[{sensor_id}] Sensor não autorizado no servidor.")
+                    break
+                else:
+                    temperatura = simular_temperatura(temperatura)
 
-try:
-    while True:
-        temperatura = gerar_temperatura()
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        mensagem = f"{SENSOR_ID}|{timestamp}|{temperatura}"
-        try:
-            cliente.send(mensagem.encode())
-        except:
-            print("[ERRO] Reconectando...")
-            cliente = conectar()
-        time.sleep(2)
-except KeyboardInterrupt:
-    print("[SENSOR] Encerrando conexão.")
-    cliente.close()
+                time.sleep(INTERVALO)
+
+        except Exception as e:
+            print(f"[{sensor_id}] Falha na conexão: {e}")
+            time.sleep(5)
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Uso: python cliente_sensor.py sensor_ID")
+        sys.exit(1)
+
+    sensor_id = sys.argv[1]
+    sensor(sensor_id)

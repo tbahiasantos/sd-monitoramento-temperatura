@@ -1,6 +1,6 @@
 # 🌡️ Monitoramento Distribuído de Temperatura com Sensores Simulados
 
-Projeto acadêmico da disciplina **Sistemas Distribuídos** (CEFET-MG, 2025/1), com foco em comunicação cliente-servidor via sockets TCP, visualização em tempo real com Flask e controle de sensores inteligentes.
+Projeto acadêmico da disciplina **Sistemas Distribuídos** (CEFET-MG, 2025/1), com foco em comunicação cliente-servidor via sockets TCP, visualização em tempo real com Flask e controle inteligente de sensores.
 
 ---
 
@@ -9,15 +9,16 @@ Projeto acadêmico da disciplina **Sistemas Distribuídos** (CEFET-MG, 2025/1), 
 ```
 SD_Monitoramento_Temperatura/
 ├── cliente/
-│   ├── cliente_sensor.py           # Simulador de sensor individual
+│   ├── cliente_sensor.py           # Simulador de sensor individual com controle por tendência
+│   ├── iniciar_sensores.py         # Executa múltiplos sensores em paralelo
 ├── servidor/
-│   ├── servidor_main.py            # Servidor TCP para receber leituras
-│   ├── servidor_web.py             # Painel web em Flask
+│   ├── servidor_main.py            # Servidor TCP: gerencia sensores e comanda ajustes
+│   ├── servidor_web.py             # Painel web com Flask + API
 │   └── templates/
-│       └── index.html              # Interface HTML com gráfico e tabelas
-├── iniciar_sensores.py            # Executa múltiplos sensores em paralelo
+│       └── index.html              # Interface web com gráfico, alertas e status por sensor
 ├── sensores_autorizados.txt       # Lista de sensores permitidos
-├── registros.csv                  # Banco de dados CSV gerado em tempo de execução
+├── registros.csv                  # Banco de dados local com histórico das leituras
+├── README.md
 ```
 
 ---
@@ -30,7 +31,7 @@ SD_Monitoramento_Temperatura/
 python servidor/servidor_main.py
 ```
 
-### 2. Inicie o painel web (Flask)
+### 2. Inicie o painel web
 
 ```bash
 python servidor/servidor_web.py
@@ -38,22 +39,25 @@ python servidor/servidor_web.py
 
 Acesse: [http://localhost:8000](http://localhost:8000)
 
-### 3. Inicie os sensores
+### 3. Inicie os sensores simulados
 
 ```bash
-python iniciar_sensores.py
+python cliente/iniciar_sensores.py
 ```
 
 ---
 
 ## 🛠️ Funcionalidades
 
-- 🔁 Comunicação em tempo real com sockets TCP
-- 📈 Painel gráfico com atualização automática (sem precisar recarregar a página)
-- 🔥 Detecção de superaquecimento com controle automático de temperatura
-- ⚠️ Registro de alertas e última leitura por sensor
-- 🧪 Execução paralela de múltiplos sensores via subprocesso
-- 📝 Armazenamento local em `registros.csv` para auditoria
+- 🔁 Comunicação TCP em tempo real com sensores simulados
+- 📊 Painel web com **gráfico em tempo real** (sem precisar recarregar)
+- 🖥️ **Tabela de status** com cores dinâmicas por faixa de temperatura:
+  - Azul (≤ 20 °C), Verde (≤ 23 °C), Amarelo (≤ 25 °C), Laranja (≤ 27 °C), Vermelho (> 27 °C)
+- 🧠 Controle inteligente:
+  - Servidor envia comando `AJUSTE` para sensores em estado crítico
+- ❤️ Animação de heartbeat ativo
+- ⚠️ Alertas recentes exibidos na interface
+- 💾 Persistência local de leituras em `registros.csv`
 
 ---
 
@@ -63,7 +67,6 @@ python iniciar_sensores.py
 - Bibliotecas:
   - `flask`
   - `pandas`
-  - `chart.js` (via CDN)
 
 Instale com:
 

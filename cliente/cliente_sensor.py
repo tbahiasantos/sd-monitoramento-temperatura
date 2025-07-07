@@ -1,55 +1,98 @@
-# cliente/cliente_sensor.py
+"""
+cliente_sensor.py
+
+Cliente TCP simulando um sensor de temperatura em uma baia de servidor.
+Envia periodicamente dados de temperatura ao servidor central e reage a comandos recebidos.
+
+Autor: Thiago Bahia
+Projeto: SD_Monitoramento_Temperatura
+Data: 2025-07-06
+"""
+
 import socket
 import time
 import random
 import sys
 from datetime import datetime
 
-HOST = 'localhost'
+# Configurações da conexão
+SERVIDOR = 'localhost'
 PORTA = 5000
-INTERVALO = 2  # segundos
+INTERVALO_ENVIO = 2  # segundos
+LIMITE_CRITICO = 27.0  # Referência local; controle principal é do servidor
 
-def simular_temperatura(temp_atual):
-    # Aumenta ou diminui até ±0.5°C
-    return round(temp_atual + random.uniform(-0.5, 0.5), 2)
+def gerar_temperatura(temp_atual, tendencia):
+    """
+    Gera uma nova temperatura com base na tendência atual e ruído aleatório.
+    Pode alterar a tendência com 10% de chance.
 
-def ajustar_temperatura(temp_atual):
-    # Reduz temperatura de forma forçada
-    return round(temp_atual - random.uniform(0.8, 1.5), 2)
+    Parâmetros:
+        temp_atual (float): temperatura anterior
+        tendencia (int): -1 (esfriando), 0 (estável), 1 (esquentando)
 
-def sensor(sensor_id):
-    temperatura = random.uniform(35.0, 37.0)  # Temperatura inicial
+    Retorna:
+        nova_temp (float), nova_tendencia (int)
+    """
+    if random.random() < 0.2:  # 20% de chance de alterar tendência (antes era 10%)
+        tendencia = random.choice([-1, 0, 1])
 
-    while True:
-        try:
-            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.connect((HOST, PORTA))
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                mensagem = f"{sensor_id}|{timestamp}|{temperatura:.2f}"
-                s.sendall(mensagem.encode())
-                resposta = s.recv(1024).decode()
-                print(f"[{sensor_id}] Enviado: {mensagem}")
-                print(f"[{sensor_id}] Resposta: {resposta}")
+    variacao = random.uniform(0.3, 0.9) * tendencia  # aumento da variação
+    ruido = random.uniform(-0.3, 0.5)                # ruído levemente positivo
+    nova_temp = temp_atual + variacao + ruido
+    nova_temp = max(18.0, min(nova_temp, 40.0))
+    return round(nova_temp, 2), tendencia
 
-                if resposta == "AJUSTE":
-                    temperatura = ajustar_temperatura(temperatura)
-                    print(f"[{sensor_id}] Ajustando temperatura para {temperatura}°C\n")
-                elif resposta == "NAO_AUTORIZADO":
-                    print(f"[{sensor_id}] Sensor não autorizado no servidor.")
-                    break
-                else:
-                    temperatura = simular_temperatura(temperatura)
+def executar_sensor(sensor_id):
+    """
+    Conecta ao servidor e inicia o envio periódico de leituras de temperatura.
 
-                time.sleep(INTERVALO)
+    Parâmetros:
+        sensor_id (str): identificador único do sensor
+    """
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect((SERVIDOR, PORTA))
+        print(f"[{sensor_id}] Conectado ao servidor {SERVIDOR}:{PORTA}")
+    except Exception as e:
+        print(f"[{sensor_id}] Erro ao conectar: {e}")
+        return
 
-        except Exception as e:
-            print(f"[{sensor_id}] Falha na conexão: {e}")
-            time.sleep(5)
+    temp = random.uniform(23.0, 26.0)  # Temperatura inicial
+    tendencia = 0
 
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Uso: python cliente_sensor.py sensor_ID")
-        sys.exit(1)
+    try:
+        while True:
+            temp, tendencia = gerar_temperatura(temp, tendencia)
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            mensagem = f"{sensor_id}|{timestamp}|{temp}"
+            sock.sendall(mensagem.encode())
 
-    sensor_id = sys.argv[1]
-    sensor(sensor_id)
+            try:
+                resposta = sock.recv(1024).decode()
+            except (ConnectionResetError, BrokenPipeError):
+                print(f"[{sensor_id}] Conexão perdida com o servidor.")
+                break
+
+            print(f"[{sensor_id}] Enviado: {mensagem}")
+            print(f"[{sensor_id}] Resposta: {resposta}")
+
+            if resposta == "OFF":
+                print(f"[{sensor_id}] Desligado por superaquecimento.")
+                break
+            elif resposta == "AJUSTE":
+                tendencia = -1  # Faz a temperatura cair
+            elif resposta == "OK":
+                print(f"[{sensor_id}] Temperatura dentro do limite.")
+
+            time.sleep(INTERVALO_ENVIO)
+
+    except KeyboardInterrupt:
+        print(f"\n[{sensor_id}] Interrompido manualmente.")
+
+    finally:
+        sock.close()
+        print(f"[{sensor_id}] Conexão encerrada.")
+
+if __name__ == "__main__":
+    sensor_id = sys.argv[1] if len(sys.argv) > 1 else input("Digite o ID do sensor: ").strip()
+    executar_sensor(sensor_id)

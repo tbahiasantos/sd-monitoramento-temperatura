@@ -1,5 +1,6 @@
-sensor_001
-sensor_002
-sensor_003
-sensor_004
-sensor_005
+baia_01
+baia_02
+baia_03
+baia_04
+baia_05
+baia_superaquecida
